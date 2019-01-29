@@ -8,6 +8,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 )
 
 // add the peers to the gossiper structure
@@ -35,7 +36,7 @@ type CounterWrapper struct {
 // should the database contain both the received messages and the current status?
 // their state should be consistent, but there might be cases in which it doesn't make sense to lock both the structures
 type MessagesDatabase struct {
-	Messages map[string][]*messages.RumorMessage // address -> list of messages. Or name instead of the address ?
+	Messages map[string][]*messages.RumorMessage // name -> list of messages
 	CurrentStatus *messages.StatusPacket
 	Mux sync.RWMutex
 }
@@ -61,12 +62,6 @@ func NewGossiperComplete(clientAddress, myAddress, name, peersList string) *Goss
 	if err != nil {
 		panic (fmt.Sprintf("Error in opening UDP listener: %s", err))
 	}
-
-	//var myPeers []Peer
-	//myPeers := make(map[string]Peer)
-	//myPeers := &peersList.SafeMapPeers{
-	//	v: make(map[string]*net.UDPAddr),
-	//}
 
 	gossiper := &Gossiper{
 		ClientListenerAddress: clientUDPAddr,
@@ -121,4 +116,25 @@ func (myGossiper *Gossiper) String() string {
 	gossiper.WriteString(fmt.Sprintf("UDP listener peerAddress: %s\n", myGossiper.ClientListenerAddress.String()))
 
 	return gossiper.String()
+}
+
+func (gossiper *Gossiper) PeriodicStatusPropagation() {
+	ticker := time.NewTicker(1 * time.Second)
+
+	for {
+		select {
+		case <- ticker.C:
+			gossiper.Database.Mux.RLock()
+			gossiper.Peers.Mux.RLock()
+			packet := &messages.GossipPacket{
+				Status: gossiper.Database.CurrentStatus,
+			}
+
+			noSend := make(map[string]struct{})
+			gossiper.sendToPeers(packet, gossiper.Peers.V, noSend)
+
+			gossiper.Database.Mux.RUnlock()
+			gossiper.Peers.Mux.RUnlock()
+		}
+	}
 }

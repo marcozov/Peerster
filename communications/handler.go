@@ -148,15 +148,28 @@ func (gossiper *Gossiper) handleSimpleMessage(packet *messages.GossipPacket) {
 }
 
 func (gossiper *Gossiper) processRumorMessage(packet *messages.GossipPacket, senderAddress *net.UDPAddr) {
-	// senderAddress not really needed
-
 	// send a copy of the rumor to a randomly chosen peer
 	allPeers := gossiper.Peers.GetAllPeers()
+	filteredPeers := make(map[string]*peers.Peer)
+
+	for key, value := range allPeers {
+		if key != senderAddress.String() {
+			filteredPeers[key] = value
+		}
+	}
+
 	// get random neighbor
 	rand.Seed(time.Now().UnixNano())
-	n := rand.Intn(len(allPeers))
+	n_filteredPeers := len(filteredPeers)
+	if n_filteredPeers < 1 {
+		return
+	}
+
+	n := rand.Intn(n_filteredPeers)
 	var chosenPeer *peers.Peer
-	for _, chosenPeer = range allPeers {
+
+	// should avoid to pick senderAddress as peer for sending the RUMOR: it makes no sense to send it back!
+	for _, chosenPeer = range filteredPeers {
 		if n == 0 {
 			break
 		}
@@ -165,10 +178,6 @@ func (gossiper *Gossiper) processRumorMessage(packet *messages.GossipPacket, sen
 	}
 
 	gossiper.sendToSinglePeer(packet, chosenPeer.Address)
-
-	// what if there is a different socket for these status messages?
-	// it could be a socket that handles only acknowledgements for rumors
-	// --> compatibility issues with other Peerster software
 
 	// run an handler for STATUS that disappears after the timeout
 	// the handler is related specifically to the sender of the rumor (senderAddress)
@@ -184,8 +193,16 @@ func (gossiper *Gossiper) processRumorMessage(packet *messages.GossipPacket, sen
 	select {
 	case receivedACK := <- handler:
 		fmt.Println("ACK received!")
-		gossiper.processStatusMessage(receivedACK, chosenPeer.Address)
+		processedStatus := gossiper.processStatusMessage(receivedACK, chosenPeer.Address)
 		delete(gossiper.StatusHandlers, chosenPeer.Address.String())
+
+		// if I didn't send any RUMOR/STATUS after processing the received STATUS
+		if processedStatus == 0 {
+			rand.Seed(time.Now().UnixNano())
+			if rand.Int() % 2 == 1 {
+				gossiper.processRumorMessage(packet, senderAddress)
+			}
+		}
 	case <- time.After(1 * time.Second):
 		fmt.Println("*** TIMEOUT ***")
 		// destroy the handler
@@ -208,6 +225,7 @@ func (gossiper *Gossiper) handleRumorMessage(packet *messages.GossipPacket, send
 	nextMessage := false
 	gossiper.Database.Mux.Lock()
 
+	// see if I already have some messages from Rumor.Origin
 	fmt.Println("received RUMOR packet: ", packet.Rumor)
 	var desiredStatus *messages.PeerStatus
 	desiredStatus = nil
@@ -219,6 +237,7 @@ func (gossiper *Gossiper) handleRumorMessage(packet *messages.GossipPacket, send
 		}
 	}
 
+	// *** ADDING message to the database
 	// if no message was received from the host specified by the RUMOR packet
 	if desiredStatus == nil {
 		gossiper.Database.Messages[packet.Rumor.Origin] = []*messages.RumorMessage{}
@@ -279,7 +298,10 @@ func (gossiper *Gossiper) handleStatusMessage(packet *messages.GossipPacket, sen
 	}
 }
 
-func (gossiper *Gossiper) processStatusMessage(status *messages.StatusPacket, senderAddress *net.UDPAddr) {
+// returns 1 if this peer appears to have some newer messages to send to senderAddress
+// returns -1 if senderAddress appears to have some newer messages to send me
+// returns 0 if neither peer appears to have any new messages the other has not yet seen
+func (gossiper *Gossiper) processStatusMessage(status *messages.StatusPacket, senderAddress *net.UDPAddr) int {
 	gossiper.Database.Mux.Lock()
 	defer gossiper.Database.Mux.Unlock()
 
@@ -296,17 +318,42 @@ func (gossiper *Gossiper) processStatusMessage(status *messages.StatusPacket, se
 		receivedStatusMap[receivedPeerStatus.Identifier] = receivedPeerStatus.NextID
 	}
 
+	toSend := &messages.GossipPacket{}
+
 	// trying to see whether I have to send messages to senderAddress (that sent me the STATUS)
 	for identifierMyStatus, nextIDmyStatus := range currentStatusMap {
 		nextIDreceivedStatus, exists := receivedStatusMap[identifierMyStatus]
 
 		if !exists {
 			// send all the messages of nextID to senderAddress.. well, just send the first one, this will trigger the whole mechanism of RUMOR-STATUS!
+			myMessages, ok := gossiper.Database.Messages[identifierMyStatus]
+			if !ok {
+				panic(fmt.Sprintf("Discrepancies between the current status and the database: \n%s\n%s", gossiper.Database.Messages, gossiper.Database.CurrentStatus))
+			}
+			toSend.Rumor = myMessages[0]
+
+			//fmt.Println(toSend)
+			gossiper.sendToSinglePeer(toSend, senderAddress)
+
+			return 1
 		} else {
 			if nextIDmyStatus < nextIDreceivedStatus {
 				// send my status to senderAddress
+				toSend.Status = gossiper.Database.CurrentStatus
+				gossiper.sendToSinglePeer(toSend, senderAddress)
+
+				return -1
 			} else if nextIDmyStatus > nextIDreceivedStatus {
 				// send the message with nextIDreceivedStatus
+				myMessages, ok := gossiper.Database.Messages[identifierMyStatus]
+				if !ok {
+					panic(fmt.Sprintf("Discrepancies between the current status and the database: \n%s\n%s", gossiper.Database.Messages, gossiper.Database.CurrentStatus))
+				}
+
+				toSend.Rumor = myMessages[nextIDreceivedStatus-1]
+
+				gossiper.sendToSinglePeer(toSend, senderAddress)
+				return 1
 			}
 		}
 	}
@@ -318,12 +365,33 @@ func (gossiper *Gossiper) processStatusMessage(status *messages.StatusPacket, se
 
 		if !exists {
 			// send my status to senderAddress, I need some messages!
+			toSend.Status = gossiper.Database.CurrentStatus
+			gossiper.sendToSinglePeer(toSend, senderAddress)
+
+			return -1
 		} else {
 			if nextIDreceivedStatus > nextIDmyStatus {
 				// send my status to senderAddress, I need some messages
+				toSend.Status = gossiper.Database.CurrentStatus
+				gossiper.sendToSinglePeer(toSend, senderAddress)
+
+				return -1
 			} else if nextIDreceivedStatus < nextIDmyStatus {
-				// send messages to senderAddress: it need my messages
+				// send messages to senderAddress: it needs my messages
+				// ---> send only one message! (repeat the rumormorgening process by sending one of those messages)
+
+				myMessages, ok := gossiper.Database.Messages[identifierReceivedStatus]
+				if !ok {
+					panic(fmt.Sprintf("Discrepancies between the current status and the database: \n%s\n%s", gossiper.Database.Messages, gossiper.Database.CurrentStatus))
+				}
+
+				toSend.Rumor = myMessages[nextIDreceivedStatus-1]
+
+				gossiper.sendToSinglePeer(toSend, senderAddress)
+				return 1
 			}
 		}
 	}
+
+	return 0
 }

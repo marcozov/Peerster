@@ -42,5 +42,6 @@ func main() {
 	gossiper.Simple = *simple
 
 	go gossiper.HandleClientConnection()
+	go gossiper.PeriodicStatusPropagation()
 	gossiper.HandleIncomingPeerMessages()
 }
