@@ -229,7 +229,6 @@ func (gossiper *Gossiper) handleRumorMessage(packet *messages.GossipPacket, send
 	}
 	fmt.Println("desired status: ", desiredStatus)
 
-	//if int(packet.Rumor.ID) == len(receivedMessages)+1 {
 	// if the next message that must be received is the received one (i.e., it is not out of order)
 	if desiredStatus.NextID == packet.Rumor.ID {
 		// is it possible to do so with a slice?
@@ -312,15 +311,19 @@ func (gossiper *Gossiper) processStatusMessage(status *messages.StatusPacket, se
 		}
 	}
 
-	for identifierReceivedStatus, nextIDreceivedStatus :=  range receivedStatusMap {
+	for identifierReceivedStatus, nextIDreceivedStatus := range receivedStatusMap {
 		nextIDmyStatus, exists := currentStatusMap[identifierReceivedStatus]
 
 		fmt.Println(nextIDreceivedStatus, nextIDmyStatus)
 
 		if !exists {
-			// send my status to senderAddress
+			// send my status to senderAddress, I need some messages!
 		} else {
-
+			if nextIDreceivedStatus > nextIDmyStatus {
+				// send my status to senderAddress, I need some messages
+			} else if nextIDreceivedStatus < nextIDmyStatus {
+				// send messages to senderAddress: it need my messages
+			}
 		}
 	}
 }
