@@ -10,10 +10,6 @@ import (
 	"time"
 )
 
-var peerMessage = "SIMPLE MESSAGE origin %s from %s contents %s\n"
-var clientMessage = "CLIENT MESSAGE %s\n"
-var listPeers = "PEERS %s\n"
-
 func (gossiper *Gossiper) HandleClientConnection() {
 	for {
 		udpBufferClient := make([]byte, 1024)
@@ -31,7 +27,7 @@ func (gossiper *Gossiper) HandleClientConnection() {
 			panic(fmt.Sprintf("error in decoding UDP data: %s\nudpBuffer: %v\nsenderAddress: %s\npacket: %s\nn bytes: %d", err, udpBufferClient, senderAddress.String(), mex, n))
 		}
 
-		fmt.Printf(clientMessage, mex.Simple.Contents)
+		fmt.Printf("CLIENT MESSAGE %s\n", mex.Simple.Contents)
 		fmt.Printf("PEERS %s\n", gossiper.PeersAsString())
 
 		mex.Simple.OriginalName = gossiper.Name
@@ -56,9 +52,9 @@ func (gossiper *Gossiper) HandleClientConnection() {
 			gossiper.sendToPeers(mex, gossiper.Peers.GetAllPeers(), noSend)
 		}
 
-		fmt.Println("DATABASE: ", gossiper.Database.Messages, "\nSTATE: ", gossiper.Database.CurrentStatus)
+		//fmt.Println("DATABASE: ", gossiper.Database.Messages, "\nSTATE: ", gossiper.Database.CurrentStatus)
 
-		//gossiper.sendToPeers(mex, gossiper.Peers.GetAllPeers(), noSend)
+
 	}
 }
 
@@ -97,7 +93,7 @@ func (gossiper *Gossiper) ProcessMessage(packet *messages.GossipPacket, senderAd
 		gossiper.handleStatusMessage(packet, senderAddress)
 	}
 
-	fmt.Printf(listPeers, gossiper.PeersAsString())
+	fmt.Printf("PEERS %s\n", gossiper.PeersAsString())
 }
 
 func (gossiper *Gossiper) sendToPeers(packet *messages.GossipPacket, peers map[string]*peers.Peer, noSend map[string]struct{}) {
@@ -137,8 +133,8 @@ func (gossiper *Gossiper) handleSimpleMessage(packet *messages.GossipPacket) {
 	//gossiper.addPeer(packet.Simple.RelayPeerAddr)
 	allPeers := gossiper.Peers.GetAllPeers()
 
-	fmt.Printf(peerMessage, packet.Simple.OriginalName, packet.Simple.RelayPeerAddr, packet.Simple.Contents)
-	fmt.Printf(listPeers, gossiper.PeersAsString())
+	fmt.Printf("SIMPLE MESSAGE origin %s from %s contents %s\n", packet.Simple.OriginalName, packet.Simple.RelayPeerAddr, packet.Simple.Contents)
+	fmt.Printf("PEERS %s\n", gossiper.PeersAsString())
 
 	noSend := make(map[string]struct{})
 	noSend[packet.Simple.RelayPeerAddr] = struct{}{}
@@ -160,12 +156,12 @@ func (gossiper *Gossiper) processRumorMessage(packet *messages.GossipPacket, sen
 
 	// get random neighbor
 	rand.Seed(time.Now().UnixNano())
-	n_filteredPeers := len(filteredPeers)
-	if n_filteredPeers < 1 {
+	nFilteredPeers := len(filteredPeers)
+	if nFilteredPeers < 1 {
 		return
 	}
 
-	n := rand.Intn(n_filteredPeers)
+	n := rand.Intn(nFilteredPeers)
 	var chosenPeer *peers.Peer
 
 	// should avoid to pick senderAddress as peer for sending the RUMOR: it makes no sense to send it back!
@@ -177,6 +173,8 @@ func (gossiper *Gossiper) processRumorMessage(packet *messages.GossipPacket, sen
 		n--
 	}
 
+	// MONGERING
+	fmt.Printf("MONGERING with %s\n", chosenPeer.Address.String())
 	gossiper.sendToSinglePeer(packet, chosenPeer.Address)
 
 	// run an handler for STATUS that disappears after the timeout
@@ -221,12 +219,14 @@ func (gossiper *Gossiper) processRumorMessage(packet *messages.GossipPacket, sen
 }
 
 func (gossiper *Gossiper) handleRumorMessage(packet *messages.GossipPacket, senderAddress *net.UDPAddr) {
+	fmt.Printf("RUMOR origin %s from %s ID %d contents %s\n", packet.Rumor.Origin, senderAddress.String(), packet.Rumor.ID, packet.Rumor.Text)
+
 	// TODO: check whether the message has already been received
 	nextMessage := false
 	gossiper.Database.Mux.Lock()
 
 	// see if I already have some messages from Rumor.Origin
-	fmt.Println("received RUMOR packet: ", packet.Rumor)
+	//fmt.Println("received RUMOR packet: ", packet.Rumor)
 	var desiredStatus *messages.PeerStatus
 	desiredStatus = nil
 	for i, _ := range gossiper.Database.CurrentStatus.Want {
@@ -281,7 +281,11 @@ func (gossiper *Gossiper) handleRumorMessage(packet *messages.GossipPacket, send
 }
 
 func (gossiper *Gossiper) handleStatusMessage(packet *messages.GossipPacket, senderAddress *net.UDPAddr) {
-	fmt.Println("Received STATUS: ", packet.Status.Want, "from", senderAddress.String())
+	//fmt.Println("Received STATUS: ", packet.Status.Want, "from", senderAddress.String())
+	toShow := fmt.Sprintf("STATUS from %s ", senderAddress.String())
+	for _, v := range packet.Status.Want {
+		toShow += fmt.Sprintf("peer %s nextID %d", v.Identifier, v.NextID)
+	}
 
 	// add lock
 	// is it possible that a status message comes from "senderAddress" but
