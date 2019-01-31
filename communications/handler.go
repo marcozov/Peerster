@@ -54,7 +54,7 @@ func (gossiper *Gossiper) HandleClientConnection() {
 
 		//fmt.Println("DATABASE: ", gossiper.Database.Messages, "\nSTATE: ", gossiper.Database.CurrentStatus)
 
-
+		fmt.Printf("PEERS %s\n", gossiper.PeersAsString())
 	}
 }
 
@@ -143,15 +143,15 @@ func (gossiper *Gossiper) handleSimpleMessage(packet *messages.GossipPacket) {
 	gossiper.sendToPeers(packet, allPeers, noSend)
 }
 
-func (gossiper *Gossiper) processRumorMessage(packet *messages.GossipPacket, senderAddress *net.UDPAddr) {
+func (gossiper *Gossiper) processRumorMessage(packet *messages.GossipPacket, senderAddress *net.UDPAddr, continues bool) {
 	// send a copy of the rumor to a randomly chosen peer
 	allPeers := gossiper.Peers.GetAllPeers()
 	filteredPeers := make(map[string]*peers.Peer)
 
 	for key, value := range allPeers {
-		if key != senderAddress.String() {
+		//if key != senderAddress.String() {
 			filteredPeers[key] = value
-		}
+		//}
 	}
 
 	// get random neighbor
@@ -175,16 +175,23 @@ func (gossiper *Gossiper) processRumorMessage(packet *messages.GossipPacket, sen
 
 	// MONGERING
 	fmt.Printf("MONGERING with %s\n", chosenPeer.Address.String())
+	if continues {
+		fmt.Printf("FLIPPED COIN sending rumor to %s\n", chosenPeer.Address.String())
+	}
 	gossiper.sendToSinglePeer(packet, chosenPeer.Address)
 
 	// run an handler for STATUS that disappears after the timeout
 	// the handler is related specifically to the sender of the rumor (senderAddress)
 
-	gossiper.StatusHandlers[chosenPeer.Address.String()] = make(chan *messages.StatusPacket)
-	handler, ok := gossiper.StatusHandlers[chosenPeer.Address.String()]
+	gossiper.StatusHandlers.Mux.Lock()
+
+	gossiper.StatusHandlers.V[chosenPeer.Address.String()] = make(chan *messages.StatusPacket)
+	handler, ok := gossiper.StatusHandlers.V[chosenPeer.Address.String()]
 	if !ok {
 		panic(fmt.Sprintf("ERROR: handler for %s does not exist", chosenPeer.Address.String()))
 	}
+
+	gossiper.StatusHandlers.Mux.Unlock()
 
 	fmt.Println("Handler created for ", chosenPeer.Address.String())
 
@@ -192,28 +199,32 @@ func (gossiper *Gossiper) processRumorMessage(packet *messages.GossipPacket, sen
 	case receivedACK := <- handler:
 		fmt.Println("ACK received!")
 		processedStatus := gossiper.processStatusMessage(receivedACK, chosenPeer.Address)
-		delete(gossiper.StatusHandlers, chosenPeer.Address.String())
+		gossiper.StatusHandlers.Mux.Lock()
+		delete(gossiper.StatusHandlers.V, chosenPeer.Address.String())
+		gossiper.StatusHandlers.Mux.Unlock()
 
 		// if I didn't send any RUMOR/STATUS after processing the received STATUS
 		if processedStatus == 0 {
 			rand.Seed(time.Now().UnixNano())
 			if rand.Int() % 2 == 1 {
-				gossiper.processRumorMessage(packet, senderAddress)
+				gossiper.processRumorMessage(packet, senderAddress, true)
 			}
 		}
 	case <- time.After(1 * time.Second):
 		fmt.Println("*** TIMEOUT ***")
 		// destroy the handler
-		_, exists := gossiper.StatusHandlers[chosenPeer.Address.String()]
+		gossiper.StatusHandlers.Mux.Lock()
+		_, exists := gossiper.StatusHandlers.V[chosenPeer.Address.String()]
 		if exists {
-			delete(gossiper.StatusHandlers, chosenPeer.Address.String())
+			delete(gossiper.StatusHandlers.V, chosenPeer.Address.String())
 		}
+		gossiper.StatusHandlers.Mux.Unlock()
 
 		// flip coin, choose another random peer R', send the RUMOR message to R' (just call this function but without sending back the ACK?)
 		// ....
 		rand.Seed(time.Now().UnixNano())
 		if rand.Int() % 2 == 1 {
-			gossiper.processRumorMessage(packet, senderAddress)
+			gossiper.processRumorMessage(packet, senderAddress, true)
 		}
 	}
 }
@@ -277,7 +288,7 @@ func (gossiper *Gossiper) handleRumorMessage(packet *messages.GossipPacket, send
 		return
 	}
 
-	gossiper.processRumorMessage(packet, senderAddress)
+	gossiper.processRumorMessage(packet, senderAddress, false)
 }
 
 func (gossiper *Gossiper) handleStatusMessage(packet *messages.GossipPacket, senderAddress *net.UDPAddr) {
@@ -286,12 +297,15 @@ func (gossiper *Gossiper) handleStatusMessage(packet *messages.GossipPacket, sen
 	for _, v := range packet.Status.Want {
 		toShow += fmt.Sprintf("peer %s nextID %d", v.Identifier, v.NextID)
 	}
+	fmt.Println(toShow)
 
 	// add lock
 	// is it possible that a status message comes from "senderAddress" but
 	// it is not related to any RUMOR sent? It could just be a status message sent through the anti-entropy mechanism
 	// ---> but it is not a problem!
-	handler, exists := gossiper.StatusHandlers[senderAddress.String()]
+	gossiper.StatusHandlers.Mux.RLock()
+	handler, exists := gossiper.StatusHandlers.V[senderAddress.String()]
+	gossiper.StatusHandlers.Mux.RUnlock()
 	if exists {
 		fmt.Println("HANDLER EXISTS!! for ", senderAddress.String())
 		// this will still call the processStatusMessage function, but it will let the processRumorMessage function continue
@@ -397,5 +411,6 @@ func (gossiper *Gossiper) processStatusMessage(status *messages.StatusPacket, se
 		}
 	}
 
+	fmt.Printf("IN SYNC WITH %s\n", senderAddress.String())
 	return 0
 }

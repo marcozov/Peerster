@@ -23,9 +23,15 @@ type Gossiper struct {
 	Database *MessagesDatabase
 	Simple bool
 
-	StatusHandlers map[string]chan *messages.StatusPacket
+	//StatusHandlers map[string]chan *messages.StatusPacket
+	StatusHandlers *SafeMapStatusHandlers
 
 	Counter CounterWrapper
+}
+
+type SafeMapStatusHandlers struct {
+	V   map[string]chan *messages.StatusPacket
+	Mux sync.RWMutex
 }
 
 type CounterWrapper struct {
@@ -70,7 +76,10 @@ func NewGossiperComplete(clientAddress, myAddress, name, peersList string) *Goss
 		PeerListenerConnection: peerUDPConn,
 		Name: name,
 		Peers: peers.InitPeersMap(),
-		StatusHandlers: make(map[string]chan *messages.StatusPacket),
+		//StatusHandlers: make(map[string]chan *messages.StatusPacket),
+		StatusHandlers: &SafeMapStatusHandlers{
+			V: make(map[string]chan *messages.StatusPacket),
+		},
 
 		Database: &MessagesDatabase {
 			Messages: make(map[string][]*messages.RumorMessage),
