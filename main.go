@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/marcozov/Peerster/communications"
+	"github.com/marcozov/Peerster/web"
 	//"time"
 )
 
@@ -43,5 +44,9 @@ func main() {
 
 	go gossiper.HandleClientConnection()
 	go gossiper.PeriodicStatusPropagation()
-	gossiper.HandleIncomingPeerMessages()
+	go gossiper.HandleIncomingPeerMessages()
+
+
+	webserver := web.New(*port, gossiper)
+	webserver.Start()
 }
