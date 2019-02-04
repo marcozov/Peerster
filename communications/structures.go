@@ -93,13 +93,13 @@ func NewGossiperComplete(clientAddress, myAddress, name, peersList string) *Goss
 	}
 
 	for _, peer := range strings.Split(peersList, ",") {
-		gossiper.addPeer(peer)
+		gossiper.AddPeer(peer)
 	}
 
 	return gossiper
 }
 
-func (gossiper *Gossiper) addPeer(addr string) {
+func (gossiper *Gossiper) AddPeer(addr string) {
 	peerAddress, err := net.ResolveUDPAddr("udp4", addr)
 	if err != nil {
 		panic(fmt.Sprintf("Error in parsing the UDP peerAddress: %s", err))

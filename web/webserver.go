@@ -49,7 +49,7 @@ func safeDecode(w http.ResponseWriter, r *http.Request, out interface{}) error {
 func (w *Webserver) MessageHandler(wr http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		fmt.Println("GET!")
+		//fmt.Println("GET!")
 		wr.WriteHeader(http.StatusOK)
 
 	case "POST":
@@ -78,12 +78,26 @@ func (w *Webserver) MessageHandler(wr http.ResponseWriter, r *http.Request) {
 }
 
 func (w *Webserver) NodeHandler(wr http.ResponseWriter, r *http.Request) {
-	//var data string
-	//err := safeDecode(wr, r, data)
-	//if err != nil {
-	//	fmt.Println("Error (node handler): ", err)
-	//	//return
-	//}
+	switch r.Method {
+	case "GET":
+		//fmt.Println("GET!")
+		wr.WriteHeader(http.StatusOK)
+
+	case "POST":
+		var data string
+		err := safeDecode(wr, r, &data)
+		if err != nil {
+			wr.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Println("peer: ", data)
+		w.gossiper.AddPeer(data)
+
+		wr.WriteHeader(http.StatusOK)
+	default:
+		wr.WriteHeader(http.StatusMethodNotAllowed)
+	}
 }
 
 func (w *Webserver) IdHandler(wr http.ResponseWriter, r *http.Request) {

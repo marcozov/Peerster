@@ -75,7 +75,7 @@ func (gossiper *Gossiper) HandleIncomingPeerMessages() {
 			panic(fmt.Sprintf("error in decoding UDP data: %s\nudpBuffer: %v\nsenderAddress: %s\npacket: %s\nn bytes: %d", err, udpBuffer, senderAddress.String(), mex, n))
 		}
 
-		gossiper.addPeer(senderAddress.String())
+		gossiper.AddPeer(senderAddress.String())
 		go gossiper.ProcessMessage(mex, senderAddress)
 	}
 }
@@ -130,7 +130,7 @@ func (gossiper *Gossiper) SendToSinglePeer(packet *messages.GossipPacket, peer *
 }
 
 func (gossiper *Gossiper) handleSimpleMessage(packet *messages.GossipPacket) {
-	//gossiper.addPeer(packet.Simple.RelayPeerAddr)
+	//gossiper.AddPeer(packet.Simple.RelayPeerAddr)
 	allPeers := gossiper.Peers.GetAllPeers()
 
 	fmt.Printf("SIMPLE MESSAGE origin %s from %s contents %s\n", packet.Simple.OriginalName, packet.Simple.RelayPeerAddr, packet.Simple.Contents)
