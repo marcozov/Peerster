@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/marcozov/Peerster/client"
 	"github.com/marcozov/Peerster/messages"
 )
 
@@ -23,7 +24,7 @@ func main() {
 	//fmt.Println("UIPort:", *port)
 	//fmt.Println("msg:", *msg)
 
-	client := NewClient(gossiper, *port)
+	client := client.NewClient(gossiper, *port)
 
 	//fmt.Println(client.String())
 

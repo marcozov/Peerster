@@ -23,7 +23,8 @@ $(document).ready(function(){
 		const msg = $("#message").val()
 		$("#sendMessage").prop("disabled", true)
         $("#message").prop("disabled", true)
-        var obj = { Dest: "", Msg: msg, File: "", Request: "", Keywords: "", Budget: 0, Tor: "" }
+        // var obj = { Dest: "", Msg: msg, File: "", Request: "", Keywords: "", Budget: 0, Tor: "" }
+        var obj = { Dest: "", Msg: msg, File: "", Request: "", Keywords: ""}
         var dataToSend = JSON.stringify(obj)
         $.ajax({
             type: 'POST',

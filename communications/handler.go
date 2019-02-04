@@ -100,12 +100,12 @@ func (gossiper *Gossiper) sendToPeers(packet *messages.GossipPacket, peers map[s
 	for addr, peer := range peers {
 		if _, exists := noSend[addr]; !exists {
 			fmt.Println("addr: ", addr, noSend)
-			gossiper.sendToSinglePeer(packet, peer.Address)
+			gossiper.SendToSinglePeer(packet, peer.Address)
 		}
 	}
 }
 
-func (gossiper *Gossiper) sendToSinglePeer(packet *messages.GossipPacket, peer *net.UDPAddr) {
+func (gossiper *Gossiper) SendToSinglePeer(packet *messages.GossipPacket, peer *net.UDPAddr) {
 	packetBytes, err := protobuf.Encode(packet)
 	if err != nil {
 		panic(fmt.Sprintf("Error in encoding the message: %s", err))
@@ -178,7 +178,7 @@ func (gossiper *Gossiper) processRumorMessage(packet *messages.GossipPacket, sen
 	if continues {
 		fmt.Printf("FLIPPED COIN sending rumor to %s\n", chosenPeer.Address.String())
 	}
-	gossiper.sendToSinglePeer(packet, chosenPeer.Address)
+	gossiper.SendToSinglePeer(packet, chosenPeer.Address)
 
 	// run an handler for STATUS that disappears after the timeout
 	// the handler is related specifically to the sender of the rumor (senderAddress)
@@ -279,7 +279,7 @@ func (gossiper *Gossiper) handleRumorMessage(packet *messages.GossipPacket, send
 		Status: gossiper.Database.CurrentStatus,
 	}
 
-	gossiper.sendToSinglePeer(statusPacket, senderAddress)
+	gossiper.SendToSinglePeer(statusPacket, senderAddress)
 	gossiper.Database.Mux.Unlock()
 
 	// if the message is out of order, do not propagate
@@ -351,14 +351,14 @@ func (gossiper *Gossiper) processStatusMessage(status *messages.StatusPacket, se
 			toSend.Rumor = myMessages[0]
 
 			//fmt.Println(toSend)
-			gossiper.sendToSinglePeer(toSend, senderAddress)
+			gossiper.SendToSinglePeer(toSend, senderAddress)
 
 			return 1
 		} else {
 			if nextIDmyStatus < nextIDreceivedStatus {
 				// send my status to senderAddress
 				toSend.Status = gossiper.Database.CurrentStatus
-				gossiper.sendToSinglePeer(toSend, senderAddress)
+				gossiper.SendToSinglePeer(toSend, senderAddress)
 
 				return -1
 			} else if nextIDmyStatus > nextIDreceivedStatus {
@@ -370,7 +370,7 @@ func (gossiper *Gossiper) processStatusMessage(status *messages.StatusPacket, se
 
 				toSend.Rumor = myMessages[nextIDreceivedStatus-1]
 
-				gossiper.sendToSinglePeer(toSend, senderAddress)
+				gossiper.SendToSinglePeer(toSend, senderAddress)
 				return 1
 			}
 		}
@@ -384,14 +384,14 @@ func (gossiper *Gossiper) processStatusMessage(status *messages.StatusPacket, se
 		if !exists {
 			// send my status to senderAddress, I need some messages!
 			toSend.Status = gossiper.Database.CurrentStatus
-			gossiper.sendToSinglePeer(toSend, senderAddress)
+			gossiper.SendToSinglePeer(toSend, senderAddress)
 
 			return -1
 		} else {
 			if nextIDreceivedStatus > nextIDmyStatus {
 				// send my status to senderAddress, I need some messages
 				toSend.Status = gossiper.Database.CurrentStatus
-				gossiper.sendToSinglePeer(toSend, senderAddress)
+				gossiper.SendToSinglePeer(toSend, senderAddress)
 
 				return -1
 			} else if nextIDreceivedStatus < nextIDmyStatus {
@@ -405,7 +405,7 @@ func (gossiper *Gossiper) processStatusMessage(status *messages.StatusPacket, se
 
 				toSend.Rumor = myMessages[nextIDreceivedStatus-1]
 
-				gossiper.sendToSinglePeer(toSend, senderAddress)
+				gossiper.SendToSinglePeer(toSend, senderAddress)
 				return 1
 			}
 		}

@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"bytes"
@@ -62,8 +62,4 @@ func (client *Client) SendMessage(messageWrapper *messages.GossipPacket) {
 	if err != nil {
 		panic(fmt.Sprintf("Error in sending udp data: %s", err))
 	}
-}
-
-func GetGossiperAddress() string {
-	return gossiper
 }

@@ -3,9 +3,12 @@ package web
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/marcozov/Peerster/client"
 	"github.com/marcozov/Peerster/communications"
+	"github.com/marcozov/Peerster/messages"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 )
 
 type Webserver struct {
@@ -30,57 +33,47 @@ func (w *Webserver) Start() {
 func safeDecode(w http.ResponseWriter, r *http.Request, out interface{}) error {
 	data, err := ioutil.ReadAll(r.Body)
 
-	if err != nil {
-		fmt.Println("error: ", err)
-		w.WriteHeader(http.StatusBadRequest)
+	if err != nil {w.WriteHeader(http.StatusBadRequest)
 		return err
-
 	}
 
-	fmt.Println("data: ", data)
 	err = json.Unmarshal(data, out)
 	if err != nil {
-		fmt.Println("error2: ", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return err
 	}
 
-	//w.WriteHeader(http.StatusBadRequest)
 	return nil
-
-	//if err == nil {
-	//	err := json.Unmarshal(data, out)
-	//	if err == nil {
-	//		return nil
-	//	} else {
-	//		w.WriteHeader(http.StatusBadRequest)
-	//		return err
-	//	}
-	//} else {
-	//	w.WriteHeader(http.StatusBadRequest)
-	//	return err
-
-	//}
 }
 
 func (w *Webserver) MessageHandler(wr http.ResponseWriter, r *http.Request) {
-	var data string
-	err := safeDecode(wr, r, &data)
-	if err != nil {
-		fmt.Println("Error (message handler): ", err)
-		return
-	}
-
-	fmt.Println("wat")
-
 	switch r.Method {
 	case "GET":
 		fmt.Println("GET!")
 		wr.WriteHeader(http.StatusOK)
 
 	case "POST":
-		fmt.Println("POST@")
+		var data string
+		err := safeDecode(wr, r, &data)
+		if err != nil {
+			wr.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		client := client.NewClient("127.0.0.1", strconv.Itoa(w.gossiper.ClientListenerAddress.Port))
+
+		messageWrapper := &messages.GossipPacket{
+			Simple: &messages.SimpleMessage {
+				OriginalName: "",
+				RelayPeerAddr: "",
+				Contents: data,
+			},
+		}
+		client.SendMessage(messageWrapper)
+
 		wr.WriteHeader(http.StatusOK)
+	default:
+		wr.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
