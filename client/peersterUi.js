@@ -84,7 +84,7 @@ $(document).ready(function(){
 })
 
 function showMessages(container, messages, myName) {
-	if (container !== null) {
+	if (container !== null && messages != null) {
 		container.innerHTML = ""
 		messages.forEach(m => {
 			const elem = document.createElement("div")
@@ -93,10 +93,12 @@ function showMessages(container, messages, myName) {
 			}
 			const tooltip = document.createElement("img")
 			tooltip.src = "info.png"
-			tooltip.title = "Message first seen on " + m.FirstSeen + " \n"
-				+ "Relayed through " + m.FromAddress + " \n"
-				+ "Sequence ID: " + m.SeqID + " \n"
-				+ "Hash: " + m.Hash
+			// tooltip.title = "Message first seen on " + m.FirstSeen + " \n"
+			// 	+ "Relayed through " + m.FromAddress + " \n"
+			// 	+ "Sequence ID: " + m.SeqID + " \n"
+			// 	+ "Hash: " + m.Hash
+			tooltip.title = "Message first seen on " + m.FirstSeen + "\n"
+				+ "Sequence ID: " + m.SeqID
 			elem.appendChild(tooltip)
 			const nameTag = document.createElement("span")
 			const date = m.FirstSeen.slice(0, 10)
@@ -131,7 +133,8 @@ function update() {
 		const peerBox = document.getElementById("peerContent")
 		if (peerBox !== null) {
 			peerBox.innerHTML = "<h2>Peers</h2>"
-			JSON.parse(nodes[0]).sort((x, y) => x.Address.localeCompare(y.Address)).forEach(n => {
+			// JSON.parse(nodes[0]).sort((x, y) => x.Address.localeCompare(y.Address)).forEach(n => {
+			JSON.parse(nodes[0]).sort().forEach(n => {
 				const elem = document.createElement("div")
 				const deleteButton = document.createElement("span")
 				deleteButton.appendChild(document.createTextNode("(X) "))
@@ -139,7 +142,8 @@ function update() {
 					$.ajax({
 						type: 'POST',
 						url: "/node",
-						data: JSON.stringify(n.Address),
+						// data: JSON.stringify(n.Address),
+						data: JSON.stringify(n),
 						success: function() {
 							update()
 						},
@@ -149,20 +153,22 @@ function update() {
 						contentType: "application/json"
 					})
 				})
-				let description = ""
-				switch (n.Type) {
-					case 0:
-						description = "manual"
-						break
-					case 1:
-						description = "learned"
-						break
-					case 2:
-						description = "short-circuited"
-						break
-				}
+				let description = "manual"
+				// let description = ""
+				// switch (n.Type) {
+				// 	case 0:
+				// 		description = "manual"
+				// 		break
+				// 	case 1:
+				// 		description = "learned"
+				// 		break
+				// 	case 2:
+				// 		description = "short-circuited"
+				// 		break
+				// }
 				elem.appendChild(deleteButton)
-				elem.appendChild(document.createTextNode(n.Address + " (" + description + ")"))
+				// elem.appendChild(document.createTextNode(n.Address + " (" + description + ")"))
+				elem.appendChild(document.createTextNode(n + " (" + description + ")"))
 				peerBox.appendChild(elem)
 			})
 		}
