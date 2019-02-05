@@ -54,7 +54,11 @@ func safeDecode(w http.ResponseWriter, r *http.Request, out interface{}) error {
 }
 
 func (w *Webserver) ConvertMessageFormat(m *messages.RumorMessage) *MessageLogEntry {
-	return nil
+	return &MessageLogEntry{
+		FromNode: m.Origin,
+		SeqID: m.ID,
+		Content: m.Text,
+	}
 }
 
 func (w *Webserver) MessageHandler(wr http.ResponseWriter, r *http.Request) {
@@ -68,10 +72,12 @@ func (w *Webserver) MessageHandler(wr http.ResponseWriter, r *http.Request) {
 
 		for _, messagesPerPeer := range messagesDB {
 			for _, m := range messagesPerPeer {
+				fmt.Println("m: ", m)
 				log = append(log, w.ConvertMessageFormat(m))
 			}
 		}
 
+		fmt.Println("log: ", log)
 		data, err := json.Marshal(log)
 
 		if err != nil {

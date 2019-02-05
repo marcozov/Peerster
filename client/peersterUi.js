@@ -101,7 +101,9 @@ function showMessages(container, messages, myName) {
 				+ "Sequence ID: " + m.SeqID
 			elem.appendChild(tooltip)
 			const nameTag = document.createElement("span")
-			const date = m.FirstSeen.slice(0, 10)
+
+			// const date = m.FirstSeen.slice(0, 10)
+			
 			nameTag.appendChild(document.createTextNode(" " + m.FromNode + " "))
 			nameTag.title = tooltip.title
 			elem.appendChild(nameTag)
