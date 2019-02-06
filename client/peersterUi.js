@@ -103,7 +103,7 @@ function showMessages(container, messages, myName) {
 			const nameTag = document.createElement("span")
 
 			// const date = m.FirstSeen.slice(0, 10)
-			
+
 			nameTag.appendChild(document.createTextNode(" " + m.FromNode + " "))
 			nameTag.title = tooltip.title
 			elem.appendChild(nameTag)

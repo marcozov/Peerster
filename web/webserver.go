@@ -77,7 +77,7 @@ func (w *Webserver) MessageHandler(wr http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		fmt.Println("log: ", log)
+		//fmt.Println("log: ", log)
 		data, err := json.Marshal(log)
 
 		if err != nil {
@@ -140,7 +140,8 @@ func (w *Webserver) NodeHandler(wr http.ResponseWriter, r *http.Request) {
 		}
 
 		fmt.Println("peer: ", data)
-		w.gossiper.AddPeer(data)
+		//w.gossiper.AddPeer(data)
+		w.gossiper.AddDeletePeer(data)
 
 		wr.WriteHeader(http.StatusOK)
 	default:

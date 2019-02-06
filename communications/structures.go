@@ -108,6 +108,24 @@ func (gossiper *Gossiper) AddPeer(addr string) {
 	gossiper.Peers.AddPeer(&peers.Peer{Address: peerAddress})
 }
 
+func (gossiper *Gossiper) AddDeletePeer(addr string) {
+	gossiper.Peers.Mux.Lock()
+	defer gossiper.Peers.Mux.Unlock()
+
+	peerAddress, err := net.ResolveUDPAddr("udp4", addr)
+	if err != nil {
+		panic(fmt.Sprintf("Error in parsing the UDP peerAddress: %s", err))
+	}
+
+	peer := &peers.Peer{Address: peerAddress}
+
+	if _, exists := gossiper.Peers.V[peer.Address.String()]; !exists {
+		gossiper.Peers.V[peer.Address.String()] = peer
+	} else {
+		delete(gossiper.Peers.V, peer.Address.String())
+	}
+}
+
 func (gossiper *Gossiper) PeersAsString() string {
 	allPeers := gossiper.Peers.V
 	keys := make([]string, 0, len(allPeers))
