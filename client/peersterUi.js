@@ -63,6 +63,62 @@ $(document).ready(function(){
 			})
 		}
 	})
+
+	$("#loadingFile").hide()
+	$("#sendFile").click(function() {
+		const fileToShare = $("#fileToShare").val()
+
+		$("#sendFile").prop("disabled", true)
+		$("#fileToShare").prop("disabled", true)
+		$("#loadingFile").show()
+
+		// Check selected tab
+		const nodeName = $('li[aria-selected="true"]').attr("data-nodename")
+		if (typeof nodeName !== typeof undefined && nodeName !== false) {
+			// Private file sharing
+			$.ajax({
+				type: 'POST',
+				url: "/privateFile",
+				data: JSON.stringify({Destination: nodeName, Content: fileToShare}),
+				success: function() {
+					update()
+					$("#sendFile").prop("disabled", false)
+					$("#fileToShare").prop("disabled", false)
+					$("#fileToShare").val("")
+					$("#loadingFile").hide()
+				},
+				error: function() {
+					alert("Unable to share the file")
+					$("#sendFile").prop("disabled", false)
+					$("#fileToShare").prop("disabled", false)
+					$("#loadingFile").hide()
+				},
+				contentType: "application/json"
+			})
+		} else {
+			// Generic file sharing
+			$.ajax({
+				type: 'POST',
+				url: "/file",
+				data: JSON.stringify(fileToShare),
+				success: function() {
+					update()
+					$("#sendFile").prop("disabled", false)
+					$("#fileToShare").prop("disabled", false)
+					$("#fileToShare").val("")
+					$("#loadingFile").hide()
+					$('#tabs-1').scrollTop(1E10);
+				},
+				error: function() {
+					alert("Unable to share the file")
+					$("#sendFile").prop("disabled", false)
+					$("#fileToShare").prop("disabled", false)
+					$("#loadingFile").hide()
+				},
+				contentType: "application/json"
+			})
+		}
+	})
 	
 	$("#addPeer").click(function(){
 		const peer = $("#newPeerAddress").val()

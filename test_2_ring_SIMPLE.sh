@@ -25,7 +25,7 @@ name='A'
 # General peerster (gossiper) command
 #./Peerster -UIPort=12345 -gossipAddr=127.0.0.1:5001 -name=A -peers=127.0.0.1:5002 > A.out &
 
-for i in `seq 1 10`;
+for i in `seq 1 3`;
 do
 	outFileName="$name.out"
 	peerPort=$((($gossipPort+1)%10+5000))

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 go build
-cd client
+cd clientExec
 go build
 cd ..
 
@@ -38,8 +38,8 @@ do
 	name=$(echo "$name" | tr "A-Y" "B-Z")
 done
 
-./client/client.exe -UIPort=12349 -msg=$message
-./client/client.exe -UIPort=12346 -msg=$message2
+./clientExec/clientExec.exe -UIPort=12349 -msg=$message
+./clientExec/clientExec.exe -UIPort=12346 -msg=$message2
 sleep 3
 #pkill -f Peerster
 cmd "/C TASKKILL /F /IM Peerster.exe"

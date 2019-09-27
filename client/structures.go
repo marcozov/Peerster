@@ -49,8 +49,6 @@ func (client *Client) String() string {
 }
 
 func (client *Client) SendMessage(messageWrapper *messages.GossipPacket) {
-
-	//
 	packetBytes, err := protobuf.Encode(messageWrapper)
 
 	if err != nil {

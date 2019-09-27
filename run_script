@@ -13,3 +13,17 @@ peer3: ./Peerster.exe -name C -UIPort 6003 -gossipAddr=127.0.0.1:5003 -peers=127
 
 
 peer4: ./Peerster.exe -name D -UIPort 6004 -gossipAddr=127.0.0.1:5004 -peers=127.0.0.1
+
+
+
+
+peer1: ./Peerster.exe -name A -UIPort 12345 -gossipAddr=127.0.0.1:5000 -peers=127.0.0.1:5001
+peer2: ./Peerster.exe -name B -UIPort 12346 -gossipAddr=127.0.0.1:5001 -peers=127.0.0.1:5002
+peer3: ./Peerster.exe -name C -UIPort 12347 -gossipAddr=127.0.0.1:5002 -peers=127.0.0.1:5003
+peer4: ./Peerster.exe -name D -UIPort 12348 -gossipAddr=127.0.0.1:5003 -peers=127.0.0.1:5004
+peer5: ./Peerster.exe -name E -UIPort 12349 -gossipAddr=127.0.0.1:5004 -peers=127.0.0.1:5005
+peer6: ./Peerster.exe -name F -UIPort 12350 -gossipAddr=127.0.0.1:5005 -peers=127.0.0.1:5006
+peer7: ./Peerster.exe -name G -UIPort 12351 -gossipAddr=127.0.0.1:5006 -peers=127.0.0.1:5007
+peer8: ./Peerster.exe -name H -UIPort 12352 -gossipAddr=127.0.0.1:5007 -peers=127.0.0.1:5008
+peer9: ./Peerster.exe -name I -UIPort 12353 -gossipAddr=127.0.0.1:5008 -peers=127.0.0.1:5009
+peer10: ./Peerster.exe -name J -UIPort 12354 -gossipAddr=127.0.0.1:5009 -peers=127.0.0.1:5000

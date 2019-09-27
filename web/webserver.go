@@ -32,6 +32,10 @@ func (w *Webserver) Start() {
 	w.router.HandleFunc("/node", w.NodeHandler)
 	w.router.HandleFunc("/id", w.IdHandler)
 	w.router.HandleFunc("/routes", w.handleRoutes)
+	w.router.HandleFunc("/privateMessage", w.PrivateMessageHandler)
+	w.router.HandleFunc("/file", w.FileHandler)
+	w.router.HandleFunc("/privateFile", w.PrivateFileHandler)
+
 	w.router.Handle("/", http.FileServer(http.Dir("client")))
 	http.ListenAndServe("localhost:"+w.port, w.router)
 
@@ -61,6 +65,69 @@ func (w *Webserver) ConvertMessageFormat(m *messages.RumorMessage) *MessageLogEn
 	}
 }
 
+func (w *Webserver) ConvertPrivateMessageFormat(m *messages.PrivateMessage) *MessageLogEntry {
+	return &MessageLogEntry{
+		FromNode: m.Origin,
+		SeqID: m.ID,
+		Content: m.Text,
+		//HopLimit: m.HopLimit,
+	}
+}
+
+func (w *Webserver) FileHandler(wr http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+	case "POST":
+		var data string
+		err := safeDecode(wr, r, &data)
+		if err != nil {
+			wr.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		//client := client.NewClient("127.0.0.1", strconv.Itoa(w.gossiper.ClientListenerAddress.Port))
+		//
+		//messageWrapper := &messages.GossipPacket{
+		//	DataRequest: &messages.DataRequest {
+		//		Origin: "",
+		//		Destination: "",
+		//		HopLimit: 15,
+		//		HashValue: []byte{},
+		//	},
+		//}
+		fmt.Println("file handler data: ", data)
+		//client.SendMessage(messageWrapper)
+
+		wr.WriteHeader(http.StatusOK)
+	default:
+		wr.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (w *Webserver) PrivateFileHandler(wr http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+	case "POST":
+		type PrivateMessage struct {
+			Destination string
+			Content		string
+		}
+
+		var data PrivateMessage
+		err := safeDecode(wr, r, &data)
+		if err != nil {
+			wr.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		destination := data.Destination
+		content := data.Content
+		fmt.Println("private file handler data: ", destination, content)
+	default:
+		wr.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
 func (w *Webserver) MessageHandler(wr http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
@@ -68,7 +135,6 @@ func (w *Webserver) MessageHandler(wr http.ResponseWriter, r *http.Request) {
 		var log []*MessageLogEntry
 		w.gossiper.Database.Mux.RLock()
 		messagesDB := w.gossiper.Database.Messages
-		w.gossiper.Database.Mux.RUnlock()
 
 		for _, messagesPerPeer := range messagesDB {
 			for _, m := range messagesPerPeer {
@@ -76,6 +142,7 @@ func (w *Webserver) MessageHandler(wr http.ResponseWriter, r *http.Request) {
 				log = append(log, w.ConvertMessageFormat(m))
 			}
 		}
+		w.gossiper.Database.Mux.RUnlock()
 
 		//fmt.Println("log: ", log)
 		data, err := json.Marshal(log)
@@ -101,6 +168,79 @@ func (w *Webserver) MessageHandler(wr http.ResponseWriter, r *http.Request) {
 				OriginalName: "",
 				RelayPeerAddr: "",
 				Contents: data,
+			},
+		}
+		client.SendMessage(messageWrapper)
+
+		wr.WriteHeader(http.StatusOK)
+	default:
+		wr.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (w *Webserver) PrivateMessageHandler(wr http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		wr.WriteHeader(http.StatusOK)
+		var log []*MessageLogEntry
+		w.gossiper.Database.Mux.RLock()
+		privateMessagesDB := w.gossiper.PrivateDatabase
+
+		origin := r.URL.Query().Get("name")
+		//for _, messagesPerPeer := range privateMessagesDB.MessagesReceived {
+		//	for _, m := range messagesPerPeer {
+		for _, m := range privateMessagesDB.MessagesReceived[origin] {
+			//fmt.Println(fmt.Sprintf("received private m (from %s): %s", origin, m))
+			log = append(log, w.ConvertPrivateMessageFormat(m))
+		}
+
+		w.gossiper.Database.Mux.RUnlock()
+
+			//for _, m := range privateMessagesDB.MessagesSent[origin] {
+			//	fmt.Println(fmt.Sprintf("sent private m (to %s): %s", origin, m))
+			//	log = append(log, w.ConvertPrivateMessageFormat(m))
+			//}
+		//}
+		//log =
+
+		//fmt.Println("log: ", log)
+		data, err := json.Marshal(log)
+
+		if err != nil {
+			wr.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		wr.Write(data)
+
+	case "POST":
+		type PrivateMessage struct {
+			Destination string
+			Content		string
+		}
+
+		var data PrivateMessage
+		err := safeDecode(wr, r, &data)
+		if err != nil {
+			wr.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		client := client.NewClient("127.0.0.1", strconv.Itoa(w.gossiper.ClientListenerAddress.Port))
+
+		//messageWrapper := &messages.GossipPacket{
+		//	Simple: &messages.SimpleMessage {
+		//		OriginalName: "",
+		//		RelayPeerAddr: "",
+		//		Contents: data,
+		//	},
+		//}
+		messageWrapper := &messages.GossipPacket{
+			Private: &messages.PrivateMessage{
+				Origin: "",
+				ID: 0,
+				Text: data.Content,
+				Destination: data.Destination,
+				HopLimit: 15,
 			},
 		}
 		client.SendMessage(messageWrapper)

@@ -17,6 +17,18 @@ message_c1_2=No_clouds_really
 message_c2_2=Let\'s_go_skiing
 message_c3=Is_anybody_here?
 
+message_B_G=From_B_to_G
+message_E_G=From_E_to_G
+message_C_G=From_C_to_G
+
+message_B_B=From_B_to_B
+
+message_A_B=From_A_to_B
+message_A_G=From_A_to_G
+message_A_H=From_A_to_H
+
+names=()
+
 
 UIPort=12345
 gossipPort=5000
@@ -39,6 +51,7 @@ do
 	fi
 	UIPort=$(($UIPort+1))
 	gossipPort=$(($gossipPort+1))
+	names+=("$name")
 	name=$(echo "$name" | tr "A-Y" "B-Z")
 done
 
@@ -54,6 +67,23 @@ sleep 1
 ./clientExec/clientExec.exe -UIPort=12346 -msg=$message_c2_2
 #./client/client -UIPort=12351 -msg=$message_c3
 ./clientExec/clientExec.exe -UIPort=12351 -msg=$message_c3
+
+sleep 3
+./clientExec/clientExec.exe -UIPort=12349 -dest=G -msg=$message_E_G
+sleep 1
+./clientExec/clientExec.exe -UIPort=12346 -dest=G -msg=$message_B_G
+sleep 1
+./clientExec/clientExec.exe -UIPort=12347 -dest=G -msg=$message_C_G
+
+sleep 1
+./clientExec/clientExec.exe -UIPort=12346 -dest=B -msg=$message_B_B
+
+sleep 1
+./clientExec/clientExec.exe -UIPort=12345 -dest=B -msg=$message_A_B
+sleep 1
+./clientExec/clientExec.exe -UIPort=12345 -dest=G -msg=$message_A_G
+sleep 1
+./clientExec/clientExec.exe -UIPort=12345 -dest=H -msg=$message_A_H
 
 sleep 5
 #pkill -f Peerster
@@ -298,3 +328,52 @@ else
     echo -e "${GREEN}***PASSED***${NC}"
 fi
 
+
+
+failed="F"
+echo -e "${RED}###CHECK correct prefix tables${NC}"
+gossipPort=5000
+for i in `seq 0 9`;
+do
+    relayPort=$(($gossipPort-1))
+    if [[ "$relayPort" == 4999 ]] ; then
+        relayPort=5009
+    fi
+    nextPort=$((($gossipPort+1)%10+5000))
+
+    #echo "$relayPort $nextPort $gossipPort ${names[$i]}"
+
+    #peersLine1="127.0.0.1:$relayPort,127.0.0.1:$nextPort"
+    #peersLine1="127.0.0.1:$nextPort,127.0.0.1:$relayPort"
+    let j=$i-1
+    let k=$i+1
+    routingLine1_1="DSDV B 127.0.0.1:$relayPort"
+    routingLine1_2="DSDV B 127.0.0.1:$nextPort"
+    routingLine2_1="DSDV E 127.0.0.1:$relayPort"
+    routingLine2_2="DSDV E 127.0.0.1:$nextPort"
+    routingLine3_1="DSDV G 127.0.0.1:$relayPort"
+    routingLine3_2="DSDV G 127.0.0.1:$nextPort"
+
+    if !(grep -q "$routingLine1_1" "${outputFiles[$i]}") && !(grep -q "$routingLine1_2" "${outputFiles[$i]}") && [[ "${names[$i]}" != "B" ]] ; then
+	echo "$relayPort $nextPort $gossipPort"
+	#echo "${names[$i]}"
+        #echo "$routingLine1_1"
+        #echo "$routingLine1_2"
+	failed="T"
+    fi
+    if !(grep -q "$routingLine2_1" "${outputFiles[$i]}") && !(grep -q "$routingLine2_2" "${outputFiles[$i]}") && [[ "${names[$i]}" != "E" ]] ; then
+	failed="T"
+    fi
+    if !(grep -q "$routingLine3_1" "${outputFiles[$i]}") && !(grep -q "$routingLine3_2" "${outputFiles[$i]}") && [[ "${names[$i]}" != "G" ]] ; then
+	failed="T"
+    fi
+
+
+    gossipPort=$(($gossipPort+1))
+done
+
+if [[ "$failed" == "T" ]] ; then
+    echo -e "${RED}***FAILED***${NC}"
+else
+    echo -e "${GREEN}***PASSED***${NC}"
+fi
